@@ -71,6 +71,11 @@ export function MapContainer({ activeTool }: Props) {
                 map.addInteraction(drawInteraction)
                 break
 
+            case Tool.DrawPolygon:
+                drawInteraction = new Draw({ source, type: 'Polygon' })
+                map.addInteraction(drawInteraction)
+                break
+
             default:
                 return
         }

@@ -21,6 +21,9 @@ export function CadToolbar({ activeTool, onSelectTool }: Props) {
             <button className={buttonClass(Tool.DrawPoint)} onClick={() => toggle(Tool.DrawPoint)}>
                 Point
             </button>
+            <button className={buttonClass(Tool.DrawPolygon)} onClick={() => toggle(Tool.DrawPolygon)}>
+                Polygon
+            </button>
         </div>
     )
 }
