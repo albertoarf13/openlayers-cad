@@ -6,3 +6,6 @@ export enum Tool {
     DrawPolygon,
 }
 
+
+export type FeatureId = string | number
+
