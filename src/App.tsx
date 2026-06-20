@@ -4,7 +4,6 @@ import View from 'ol/View'
 import TileLayer from 'ol/layer/Tile'
 import OSM from 'ol/source/OSM'
 import 'ol/ol.css'
-import './App.css'
 
 function App() {
   
@@ -29,7 +28,7 @@ function App() {
     return () => map.setTarget(undefined)
   }, [])
 
-  return <div ref={mapRef} className="map" />
+  return <div ref={mapRef} className="h-screen w-screen" />
 }
 
 export default App
