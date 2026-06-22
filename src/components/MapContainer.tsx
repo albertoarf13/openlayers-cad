@@ -12,6 +12,7 @@ import Feature from 'ol/Feature'
 import LineString from 'ol/geom/LineString'
 import { closestOnSegment, squaredDistance } from 'ol/coordinate'
 import type { Coordinate } from 'ol/coordinate'
+import { getLength } from 'ol/sphere'
 import Style from 'ol/style/Style'
 import Fill from 'ol/style/Fill'
 import Stroke from 'ol/style/Stroke'
@@ -161,7 +162,11 @@ export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature, s
                         return
                     }
 
-                    onSelectSegment({ featureId, segmentIndex: closestSegmentIndex })
+                    const length = getLength(
+                        new LineString([coords[closestSegmentIndex], coords[closestSegmentIndex + 1]])
+                    )
+
+                    onSelectSegment({ featureId, segmentIndex: closestSegmentIndex, length })
                 })
 
                 interaction = select

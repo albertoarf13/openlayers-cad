@@ -14,5 +14,6 @@ export type FeatureId = string | number
 export type SelectedSegment = {
     featureId: FeatureId,
     segmentIndex: number,
+    length: number,
 }
 

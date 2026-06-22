@@ -3,9 +3,11 @@ import { Tool } from '../types'
 type Props = {
     activeTool: Tool | null
     onSelectTool: (tool: Tool | null) => void
+    hasSelectedSegment: boolean
+    onShowSegmentLength: () => void
 }
 
-export function CadToolbar({ activeTool, onSelectTool }: Props) {
+export function CadToolbar({ activeTool, onSelectTool, hasSelectedSegment, onShowSegmentLength }: Props) {
 
     const toggle = (tool: Tool) => onSelectTool(activeTool === tool ? null : tool)
 
@@ -30,6 +32,15 @@ export function CadToolbar({ activeTool, onSelectTool }: Props) {
             <button className={buttonClass(Tool.DrawPolygon)} onClick={() => toggle(Tool.DrawPolygon)}>
                 Polygon
             </button>
+
+            {hasSelectedSegment && (
+                <button
+                    className="px-3 py-2 text-sm rounded bg-white text-gray-800"
+                    onClick={onShowSegmentLength}
+                >
+                    Length
+                </button>
+            )}
         </div>
     )
 }
