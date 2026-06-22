@@ -1,6 +1,7 @@
 
 export enum Tool {
     Select,
+    SelectSegment,
     DrawPoint,
     DrawLine,
     DrawPolygon,

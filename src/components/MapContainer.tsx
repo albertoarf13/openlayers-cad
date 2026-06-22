@@ -32,11 +32,21 @@ const selectedStyle = new Style({
     }),
 })
 
+const segmentStyle = new Style({
+    fill: new Fill({ color: 'rgba(255, 0, 0, 0.3)' }),
+    stroke: new Stroke({ color: '#ff0000', width: 3 }),
+    image: new CircleStyle({
+        radius: 7,
+        fill: new Fill({ color: '#ff0000' }),
+    }),
+})
+
 export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature }: Props) {
 
     const mapRef = useRef<HTMLDivElement>(null)
     const mapInstanceRef = useRef<Map | null>(null)
     const vectorSourceRef = useRef<VectorSource | null>(null)
+    const segmentSourceRef = useRef<VectorSource | null>(null)
 
 
     useEffect(() => {
@@ -50,6 +60,10 @@ export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature }:
             }
         })
 
+
+        const segmentSource = new VectorSource();
+
+
         const map = new Map({
             target: mapRef.current,
             layers: [
@@ -58,6 +72,9 @@ export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature }:
                 }),
                 new VectorLayer({
                     source: vectorSource,
+                }),
+                new VectorLayer({
+                    source: segmentSource,
                 }),
             ],
             view: new View({
@@ -68,11 +85,13 @@ export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature }:
 
         mapInstanceRef.current = map
         vectorSourceRef.current = vectorSource
+        segmentSourceRef.current = segmentSource
 
         return () => {
             map.setTarget(undefined)
             mapInstanceRef.current = null
             vectorSourceRef.current = null
+            segmentSourceRef.current = null
         }
     }, [])
 
@@ -83,7 +102,7 @@ export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature }:
         if (!map || !source || activeTool === null) return
 
 
-        let interaction: Interaction;
+        let interaction: Interaction | undefined
 
         switch (activeTool) {
 
@@ -94,6 +113,25 @@ export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature }:
                 select.on('select', (e) => {
                     const feature = e.selected[0]
                     onSelectFeature(feature ? feature.getId() ?? null : null)
+                })
+
+                interaction = select
+                map.addInteraction(interaction)
+                break
+            }
+
+            case Tool.SelectSegment: {
+
+                const select = new Select({ style: null })
+
+                select.on('select', (e) => {
+
+                    const feature = e.selected[0]
+                    if (!feature) return
+
+                    const copy = feature.clone()
+                    copy.setStyle(segmentStyle)
+                    segmentSourceRef.current?.addFeature(copy)
                 })
 
                 interaction = select
@@ -122,7 +160,7 @@ export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature }:
 
 
         return () => {
-            map.removeInteraction(interaction)
+            if (interaction) map.removeInteraction(interaction)
         }
     }, [activeTool, onSelectFeature])
 
