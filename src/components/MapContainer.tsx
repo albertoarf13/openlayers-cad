@@ -8,6 +8,10 @@ import VectorSource from 'ol/source/Vector'
 import Draw from 'ol/interaction/Draw'
 import Select from 'ol/interaction/Select'
 import type Interaction from 'ol/interaction/Interaction'
+import Feature from 'ol/Feature'
+import LineString from 'ol/geom/LineString'
+import { closestOnSegment, squaredDistance } from 'ol/coordinate'
+import type { Coordinate } from 'ol/coordinate'
 import Style from 'ol/style/Style'
 import Fill from 'ol/style/Fill'
 import Stroke from 'ol/style/Stroke'
@@ -129,9 +133,30 @@ export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature }:
                     const feature = e.selected[0]
                     if (!feature) return
 
-                    const copy = feature.clone()
-                    copy.setStyle(segmentStyle)
-                    segmentSourceRef.current?.addFeature(copy)
+                    const geometry = feature.getGeometry()
+                    if (!(geometry instanceof LineString)) return
+
+                    const clickCoord = e.mapBrowserEvent.coordinate
+                    const coords = geometry.getCoordinates()
+
+                    let closestSegment: [Coordinate, Coordinate] | null = null
+                    let minDistance = Infinity
+
+                    for (let i = 0; i < coords.length - 1; i++) {
+                        const segment: [Coordinate, Coordinate] = [coords[i], coords[i + 1]]
+                        const pointOnSegment = closestOnSegment(clickCoord, segment)
+                        const distance = squaredDistance(clickCoord, pointOnSegment)
+                        if (distance < minDistance) {
+                            minDistance = distance
+                            closestSegment = segment
+                        }
+                    }
+
+                    if (!closestSegment) return
+
+                    const segmentFeature = new Feature(new LineString(closestSegment))
+                    segmentFeature.setStyle(segmentStyle)
+                    segmentSourceRef.current?.addFeature(segmentFeature)
                 })
 
                 interaction = select
