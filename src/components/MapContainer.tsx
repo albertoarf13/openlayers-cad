@@ -18,13 +18,15 @@ import Stroke from 'ol/style/Stroke'
 import CircleStyle from 'ol/style/Circle'
 import 'ol/ol.css'
 import { Tool } from '../types'
-import type { FeatureId } from '../types'
+import type { FeatureId, SelectedSegment } from '../types'
 
 
 type Props = {
     activeTool: Tool | null
     selectedFeatureId: FeatureId | null
     onSelectFeature: (id: FeatureId | null) => void
+    selectedSegment: SelectedSegment | null
+    onSelectSegment: (segment: SelectedSegment | null) => void
 }
 
 const selectedStyle = new Style({
@@ -45,7 +47,7 @@ const segmentStyle = new Style({
     }),
 })
 
-export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature }: Props) {
+export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature, selectedSegment, onSelectSegment }: Props) {
 
     const mapRef = useRef<HTMLDivElement>(null)
     const mapInstanceRef = useRef<Map | null>(null)
@@ -131,15 +133,17 @@ export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature }:
                 select.on('select', (e) => {
 
                     const feature = e.selected[0]
-                    if (!feature) return
-
-                    const geometry = feature.getGeometry()
-                    if (!(geometry instanceof LineString)) return
+                    const featureId = feature?.getId()
+                    const geometry = feature?.getGeometry()
+                    if (!feature || featureId === undefined || !(geometry instanceof LineString)) {
+                        onSelectSegment(null)
+                        return
+                    }
 
                     const clickCoord = e.mapBrowserEvent.coordinate
                     const coords = geometry.getCoordinates()
 
-                    let closestSegment: [Coordinate, Coordinate] | null = null
+                    let closestSegmentIndex = -1
                     let minDistance = Infinity
 
                     for (let i = 0; i < coords.length - 1; i++) {
@@ -148,15 +152,16 @@ export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature }:
                         const distance = squaredDistance(clickCoord, pointOnSegment)
                         if (distance < minDistance) {
                             minDistance = distance
-                            closestSegment = segment
+                            closestSegmentIndex = i
                         }
                     }
 
-                    if (!closestSegment) return
+                    if (closestSegmentIndex === -1) {
+                        onSelectSegment(null)
+                        return
+                    }
 
-                    const segmentFeature = new Feature(new LineString(closestSegment))
-                    segmentFeature.setStyle(segmentStyle)
-                    segmentSourceRef.current?.addFeature(segmentFeature)
+                    onSelectSegment({ featureId, segmentIndex: closestSegmentIndex })
                 })
 
                 interaction = select
@@ -187,7 +192,7 @@ export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature }:
         return () => {
             if (interaction) map.removeInteraction(interaction)
         }
-    }, [activeTool, onSelectFeature])
+    }, [activeTool, onSelectFeature, onSelectSegment])
 
 
 
@@ -199,6 +204,29 @@ export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature }:
             feature.setStyle(feature.getId() === selectedFeatureId ? selectedStyle : undefined)
         })
     }, [selectedFeatureId])
+
+
+    useEffect(() => {
+        const source = vectorSourceRef.current
+        const segmentSource = segmentSourceRef.current
+        if (!source || !segmentSource) return
+
+        segmentSource.clear()
+        if (!selectedSegment) return
+
+        const feature = source.getFeatureById(selectedSegment.featureId)
+        const geometry = feature?.getGeometry()
+        if (!(geometry instanceof LineString)) return
+
+        const coords = geometry.getCoordinates()
+        const start = coords[selectedSegment.segmentIndex]
+        const end = coords[selectedSegment.segmentIndex + 1]
+        if (!start || !end) return
+
+        const segmentFeature = new Feature(new LineString([start, end]))
+        segmentFeature.setStyle(segmentStyle)
+        segmentSource.addFeature(segmentFeature)
+    }, [selectedSegment])
 
 
     return <div ref={mapRef} className="h-screen w-screen" />
