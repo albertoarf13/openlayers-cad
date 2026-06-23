@@ -11,6 +11,8 @@ import Select from 'ol/interaction/Select'
 import type Interaction from 'ol/interaction/Interaction'
 import Feature from 'ol/Feature'
 import LineString from 'ol/geom/LineString'
+import GeoJSON from 'ol/format/GeoJSON'
+import { buffer } from '@turf/turf'
 import { closestOnSegment, squaredDistance } from 'ol/coordinate'
 import type { Coordinate } from 'ol/coordinate'
 import { getLength } from 'ol/sphere'
@@ -25,6 +27,7 @@ import type { FeatureId, SelectedSegment } from '../types'
 
 export type MapFunctions = {
     setSegmentLength: (length: number) => void
+    createBuffer: (distance: number) => void
 }
 
 type Props = {
@@ -53,6 +56,8 @@ const segmentStyle = new Style({
         fill: new Fill({ color: '#ff0000' }),
     }),
 })
+
+const geoJson = new GeoJSON()
 
 export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature, selectedSegment, onSelectSegment, mapFunctions }: Props) {
 
@@ -242,6 +247,7 @@ export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature, s
 
     useImperativeHandle(mapFunctions, () => ({
         setSegmentLength(newLength) {
+            
             const source = vectorSourceRef.current
             if (!source || !selectedSegment || !Number.isFinite(newLength) || newLength <= 0) return
 
@@ -267,10 +273,35 @@ export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature, s
             geometry.setCoordinates(coords)
 
             const updatedLength = getLength(new LineString([start, newEnd]))
-            
+
             onSelectSegment({ ...selectedSegment, length: updatedLength })
         },
-    }), [selectedSegment, onSelectSegment])
+        createBuffer(distance) {
+
+            const source = vectorSourceRef.current
+            if (!source || selectedFeatureId === null || !Number.isFinite(distance) || distance <= 0) return
+
+            const feature = source.getFeatureById(selectedFeatureId)
+            const geometry = feature?.getGeometry()
+            if (!feature || !geometry) return
+
+            const geojsonGeom = geoJson.writeGeometryObject(geometry, {
+                dataProjection: 'EPSG:4326',
+                featureProjection: 'EPSG:3857',
+            })
+            if (geojsonGeom.type === 'GeometryCollection') return
+
+            const buffered = buffer(geojsonGeom, distance, { units: 'meters' })
+            if (!buffered) return
+
+            const olGeom = geoJson.readGeometry(buffered.geometry, {
+                dataProjection: 'EPSG:4326',
+                featureProjection: 'EPSG:3857',
+            })
+
+            feature.setGeometry(olGeom)
+        },
+    }), [selectedSegment, onSelectSegment, selectedFeatureId])
 
 
     return <div ref={mapRef} className="h-screen w-screen" />

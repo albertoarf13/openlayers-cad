@@ -5,9 +5,11 @@ type Props = {
     onSelectTool: (tool: Tool | null) => void
     hasSelectedSegment: boolean
     onShowSegmentLength: () => void
+    hasSelectedFeature: boolean
+    onShowBuffer: () => void
 }
 
-export function CadToolbar({ activeTool, onSelectTool, hasSelectedSegment, onShowSegmentLength }: Props) {
+export function CadToolbar({ activeTool, onSelectTool, hasSelectedSegment, onShowSegmentLength, hasSelectedFeature, onShowBuffer }: Props) {
 
     const toggle = (tool: Tool) => onSelectTool(activeTool === tool ? null : tool)
 
@@ -39,6 +41,15 @@ export function CadToolbar({ activeTool, onSelectTool, hasSelectedSegment, onSho
                     onClick={onShowSegmentLength}
                 >
                     Length
+                </button>
+            )}
+
+            {hasSelectedFeature && (
+                <button
+                    className="px-3 py-2 text-sm rounded bg-white text-gray-800"
+                    onClick={onShowBuffer}
+                >
+                    Buffer
                 </button>
             )}
         </div>

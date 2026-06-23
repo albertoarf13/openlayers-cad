@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/components/cadtoolbar.tsx","./src/components/mapcontainer.tsx"],"version":"5.9.3"}
+{"root":["./src/app.tsx","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/components/buffermodal.tsx","./src/components/cadtoolbar.tsx","./src/components/mapcontainer.tsx","./src/components/segmentlengthmodal.tsx"],"version":"5.9.3"}
