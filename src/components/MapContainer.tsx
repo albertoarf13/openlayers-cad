@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useImperativeHandle, useRef } from 'react'
+import type { Ref } from 'react'
 import Map from 'ol/Map'
 import View from 'ol/View'
 import TileLayer from 'ol/layer/Tile'
@@ -22,12 +23,17 @@ import { Tool } from '../types'
 import type { FeatureId, SelectedSegment } from '../types'
 
 
+export type MapFunctions = {
+    setSegmentLength: (length: number) => void
+}
+
 type Props = {
     activeTool: Tool | null
     selectedFeatureId: FeatureId | null
     onSelectFeature: (id: FeatureId | null) => void
     selectedSegment: SelectedSegment | null
     onSelectSegment: (segment: SelectedSegment | null) => void
+    mapFunctions: Ref<MapFunctions>
 }
 
 const selectedStyle = new Style({
@@ -48,7 +54,7 @@ const segmentStyle = new Style({
     }),
 })
 
-export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature, selectedSegment, onSelectSegment }: Props) {
+export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature, selectedSegment, onSelectSegment, mapFunctions }: Props) {
 
     const mapRef = useRef<HTMLDivElement>(null)
     const mapInstanceRef = useRef<Map | null>(null)
@@ -232,6 +238,39 @@ export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature, s
         segmentFeature.setStyle(segmentStyle)
         segmentSource.addFeature(segmentFeature)
     }, [selectedSegment])
+
+
+    useImperativeHandle(mapFunctions, () => ({
+        setSegmentLength(newLength) {
+            const source = vectorSourceRef.current
+            if (!source || !selectedSegment || !Number.isFinite(newLength) || newLength <= 0) return
+
+            const feature = source.getFeatureById(selectedSegment.featureId)
+            const geometry = feature?.getGeometry()
+            if (!(geometry instanceof LineString)) return
+
+            const coords = geometry.getCoordinates()
+            const start = coords[selectedSegment.segmentIndex]
+            const end = coords[selectedSegment.segmentIndex + 1]
+            if (!start || !end) return
+
+            const currentLength = getLength(new LineString([start, end]))
+            if (currentLength === 0) return
+
+            const ratio = newLength / currentLength
+            const newEnd: Coordinate = [
+                start[0] + (end[0] - start[0]) * ratio,
+                start[1] + (end[1] - start[1]) * ratio,
+            ]
+
+            coords[selectedSegment.segmentIndex + 1] = newEnd
+            geometry.setCoordinates(coords)
+
+            const updatedLength = getLength(new LineString([start, newEnd]))
+            
+            onSelectSegment({ ...selectedSegment, length: updatedLength })
+        },
+    }), [selectedSegment, onSelectSegment])
 
 
     return <div ref={mapRef} className="h-screen w-screen" />
