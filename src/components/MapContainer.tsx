@@ -6,15 +6,10 @@ import TileLayer from 'ol/layer/Tile'
 import VectorLayer from 'ol/layer/Vector'
 import OSM from 'ol/source/OSM'
 import VectorSource from 'ol/source/Vector'
-import Draw from 'ol/interaction/Draw'
-import Select from 'ol/interaction/Select'
-import Snap from 'ol/interaction/Snap'
-import type Interaction from 'ol/interaction/Interaction'
 import Feature from 'ol/Feature'
 import LineString from 'ol/geom/LineString'
 import GeoJSON from 'ol/format/GeoJSON'
 import { buffer } from '@turf/turf'
-import { closestOnSegment, squaredDistance } from 'ol/coordinate'
 import type { Coordinate } from 'ol/coordinate'
 import { getLength } from 'ol/sphere'
 import Style from 'ol/style/Style'
@@ -24,7 +19,8 @@ import CircleStyle from 'ol/style/Circle'
 import 'ol/ol.css'
 import { Tool } from '../types'
 import type { FeatureId, SelectedSegment, SnapOptions } from '../types'
-import { buildSnapPoints } from './utils/buildSnapPoints'
+import { useSnapping } from './useSnapping'
+import { useToolInteractions } from './useToolInteractions'
 
 
 export type MapFunctions = {
@@ -70,7 +66,6 @@ export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature, s
     const mapInstanceRef = useRef<Map | null>(null)
     const vectorSourceRef = useRef<VectorSource | null>(null)
     const segmentSourceRef = useRef<VectorSource | null>(null)
-    const snapPointsSourceRef = useRef<VectorSource | null>(null)
 
 
     useEffect(() => {
@@ -86,8 +81,6 @@ export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature, s
 
 
         const segmentSource = new VectorSource();
-
-        const snapPointsSource = new VectorSource();
 
 
         const map = new Map({
@@ -112,151 +105,20 @@ export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature, s
         mapInstanceRef.current = map
         vectorSourceRef.current = vectorSource
         segmentSourceRef.current = segmentSource
-        snapPointsSourceRef.current = snapPointsSource
 
         return () => {
             map.setTarget(undefined)
             mapInstanceRef.current = null
             vectorSourceRef.current = null
             segmentSourceRef.current = null
-            snapPointsSourceRef.current = null
         }
     }, [])
 
+    
 
-    useEffect(() => {
-        const map = mapInstanceRef.current
-        const source = vectorSourceRef.current
-        if (!map || !source || activeTool === null) return
+    useToolInteractions(mapInstanceRef, vectorSourceRef, activeTool, onSelectFeature, onSelectSegment)
 
-
-        let interaction: Interaction | undefined
-
-        switch (activeTool) {
-
-            case Tool.Select: {
-
-                const select = new Select({ style: null })
-
-                select.on('select', (e) => {
-                    const feature = e.selected[0]
-                    onSelectFeature(feature ? feature.getId() ?? null : null)
-                })
-
-                interaction = select
-                map.addInteraction(interaction)
-                break
-            }
-
-            case Tool.SelectSegment: {
-
-                const select = new Select({ style: null })
-
-                select.on('select', (e) => {
-
-                    const feature = e.selected[0]
-                    const featureId = feature?.getId()
-                    const geometry = feature?.getGeometry()
-                    if (!feature || featureId === undefined || !(geometry instanceof LineString)) {
-                        onSelectSegment(null)
-                        return
-                    }
-
-                    const clickCoord = e.mapBrowserEvent.coordinate
-                    const coords = geometry.getCoordinates()
-
-                    let closestSegmentIndex = -1
-                    let minDistance = Infinity
-
-                    for (let i = 0; i < coords.length - 1; i++) {
-                        const segment: [Coordinate, Coordinate] = [coords[i], coords[i + 1]]
-                        const pointOnSegment = closestOnSegment(clickCoord, segment)
-                        const distance = squaredDistance(clickCoord, pointOnSegment)
-                        if (distance < minDistance) {
-                            minDistance = distance
-                            closestSegmentIndex = i
-                        }
-                    }
-
-                    if (closestSegmentIndex === -1) {
-                        onSelectSegment(null)
-                        return
-                    }
-
-                    const length = getLength(
-                        new LineString([coords[closestSegmentIndex], coords[closestSegmentIndex + 1]])
-                    )
-
-                    onSelectSegment({ featureId, segmentIndex: closestSegmentIndex, length })
-                })
-
-                interaction = select
-                map.addInteraction(interaction)
-                break
-            }
-
-            case Tool.DrawPoint:
-                interaction = new Draw({ source, type: 'Point' })
-                map.addInteraction(interaction)
-                break
-
-            case Tool.DrawLine:
-                interaction = new Draw({ source, type: 'LineString' })
-                map.addInteraction(interaction)
-                break
-
-            case Tool.DrawPolygon:
-                interaction = new Draw({ source, type: 'Polygon' })
-                map.addInteraction(interaction)
-                break
-
-            default:
-                return
-        }
-
-
-        return () => {
-            if (interaction) map.removeInteraction(interaction)
-        }
-    }, [activeTool, onSelectFeature, onSelectSegment])
-
-
-
-    useEffect(() => {
-
-        const vectorSource = vectorSourceRef.current
-        const snapPointsSource = snapPointsSourceRef.current
-        if (!vectorSource || !snapPointsSource) return
-
-        const rebuild = () => buildSnapPoints(vectorSource, snapPointsSource, snapOptions)
-
-        rebuild()
-
-        vectorSource.on('addfeature', rebuild)
-        vectorSource.on('changefeature', rebuild)
-        vectorSource.on('removefeature', rebuild)
-
-        return () => {
-            vectorSource.un('addfeature', rebuild)
-            vectorSource.un('changefeature', rebuild)
-            vectorSource.un('removefeature', rebuild)
-        }
-    }, [snapOptions])
-
-
-    useEffect(() => {
-        const map = mapInstanceRef.current
-        const snapPointsSource = snapPointsSourceRef.current
-        const anySnapEnabled = snapOptions.midpoints || snapOptions.vertices || snapOptions.lines
-        if (!map || !snapPointsSource || !anySnapEnabled) return
-
-        const snap = new Snap({ source: snapPointsSource })
-        map.addInteraction(snap)
-
-        return () => {
-            map.removeInteraction(snap)
-        }
-    }, [snapOptions, activeTool])
+    useSnapping(mapInstanceRef, vectorSourceRef, snapOptions, activeTool)
 
 
 
