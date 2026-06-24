@@ -15,6 +15,7 @@ function App() {
 	const [selectedSegment, setSelectedSegment] = useState<SelectedSegment | null>(null);
 	const [isLengthModalOpen, setIsLengthModalOpen] = useState(false)
 	const [isBufferModalOpen, setIsBufferModalOpen] = useState(false)
+	const [snapToCenter, setSnapToCenter] = useState(false)
 	const mapFunctionsRef = useRef<MapFunctions>(null)
 
 
@@ -27,11 +28,14 @@ function App() {
 				onShowSegmentLength={() => setIsLengthModalOpen(true)}
 				hasSelectedFeature={selectedFeatureId !== null}
 				onShowBuffer={() => setIsBufferModalOpen(true)}
+				snapToCenter={snapToCenter}
+				onToggleSnapToCenter={() => setSnapToCenter((v) => !v)}
 			/>
 
 			<MapContainer
 				mapFunctions={mapFunctionsRef}
 				activeTool={activeTool}
+				snapToCenter={snapToCenter}
 				selectedFeatureId={selectedFeatureId}
 				onSelectFeature={setSelectedFeatureId}
 				selectedSegment={selectedSegment}

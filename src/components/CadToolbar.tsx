@@ -7,9 +7,11 @@ type Props = {
     onShowSegmentLength: () => void
     hasSelectedFeature: boolean
     onShowBuffer: () => void
+    snapToCenter: boolean
+    onToggleSnapToCenter: () => void
 }
 
-export function CadToolbar({ activeTool, onSelectTool, hasSelectedSegment, onShowSegmentLength, hasSelectedFeature, onShowBuffer }: Props) {
+export function CadToolbar({ activeTool, onSelectTool, hasSelectedSegment, onShowSegmentLength, hasSelectedFeature, onShowBuffer, snapToCenter, onToggleSnapToCenter }: Props) {
 
     const toggle = (tool: Tool) => onSelectTool(activeTool === tool ? null : tool)
 
@@ -33,6 +35,13 @@ export function CadToolbar({ activeTool, onSelectTool, hasSelectedSegment, onSho
             </button>
             <button className={buttonClass(Tool.DrawPolygon)} onClick={() => toggle(Tool.DrawPolygon)}>
                 Polygon
+            </button>
+
+            <button
+                className={`px-3 py-2 text-sm rounded ${snapToCenter ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}
+                onClick={onToggleSnapToCenter}
+            >
+                Snap Center
             </button>
 
             {hasSelectedSegment && (
