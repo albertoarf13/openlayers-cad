@@ -12,7 +12,6 @@ import Snap from 'ol/interaction/Snap'
 import type Interaction from 'ol/interaction/Interaction'
 import Feature from 'ol/Feature'
 import LineString from 'ol/geom/LineString'
-import Point from 'ol/geom/Point'
 import GeoJSON from 'ol/format/GeoJSON'
 import { buffer } from '@turf/turf'
 import { closestOnSegment, squaredDistance } from 'ol/coordinate'
@@ -24,7 +23,8 @@ import Stroke from 'ol/style/Stroke'
 import CircleStyle from 'ol/style/Circle'
 import 'ol/ol.css'
 import { Tool } from '../types'
-import type { FeatureId, SelectedSegment } from '../types'
+import type { FeatureId, SelectedSegment, SnapOptions } from '../types'
+import { buildSnapPoints } from './utils/buildSnapPoints'
 
 
 export type MapFunctions = {
@@ -38,7 +38,7 @@ type Props = {
     onSelectFeature: (id: FeatureId | null) => void
     selectedSegment: SelectedSegment | null
     onSelectSegment: (segment: SelectedSegment | null) => void
-    snapToCenter: boolean
+    snapOptions: SnapOptions
     mapFunctions: Ref<MapFunctions>
 }
 
@@ -62,13 +62,15 @@ const segmentStyle = new Style({
 
 const geoJson = new GeoJSON()
 
-export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature, selectedSegment, onSelectSegment, snapToCenter, mapFunctions }: Props) {
+
+
+export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature, selectedSegment, onSelectSegment, snapOptions, mapFunctions }: Props) {
 
     const mapRef = useRef<HTMLDivElement>(null)
     const mapInstanceRef = useRef<Map | null>(null)
     const vectorSourceRef = useRef<VectorSource | null>(null)
     const segmentSourceRef = useRef<VectorSource | null>(null)
-    const midpointSourceRef = useRef<VectorSource | null>(null)
+    const snapPointsSourceRef = useRef<VectorSource | null>(null)
 
 
     useEffect(() => {
@@ -85,31 +87,7 @@ export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature, s
 
         const segmentSource = new VectorSource();
 
-        const midpointSource = new VectorSource();
-
-        const updateMidpoints = () => {
-            midpointSource.clear()
-
-            vectorSource.getFeatures().forEach((feature) => {
-                const geometry = feature.getGeometry()
-                if (!(geometry instanceof LineString)) return
-
-                const coords = geometry.getCoordinates()
-                for (let i = 0; i < coords.length - 1; i++) {
-                    const start = coords[i]
-                    const end = coords[i + 1]
-                    const midpoint: Coordinate = [
-                        (start[0] + end[0]) / 2,
-                        (start[1] + end[1]) / 2,
-                    ]
-                    midpointSource.addFeature(new Feature(new Point(midpoint)))
-                }
-            })
-        }
-
-        vectorSource.on('addfeature', updateMidpoints)
-        vectorSource.on('changefeature', updateMidpoints)
-        vectorSource.on('removefeature', updateMidpoints)
+        const snapPointsSource = new VectorSource();
 
 
         const map = new Map({
@@ -134,17 +112,14 @@ export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature, s
         mapInstanceRef.current = map
         vectorSourceRef.current = vectorSource
         segmentSourceRef.current = segmentSource
-        midpointSourceRef.current = midpointSource
+        snapPointsSourceRef.current = snapPointsSource
 
         return () => {
             map.setTarget(undefined)
-            vectorSource.un('addfeature', updateMidpoints)
-            vectorSource.un('changefeature', updateMidpoints)
-            vectorSource.un('removefeature', updateMidpoints)
             mapInstanceRef.current = null
             vectorSourceRef.current = null
             segmentSourceRef.current = null
-            midpointSourceRef.current = null
+            snapPointsSourceRef.current = null
         }
     }, [])
 
@@ -246,18 +221,42 @@ export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature, s
     }, [activeTool, onSelectFeature, onSelectSegment])
 
 
+
+    useEffect(() => {
+
+        const vectorSource = vectorSourceRef.current
+        const snapPointsSource = snapPointsSourceRef.current
+        if (!vectorSource || !snapPointsSource) return
+
+        const rebuild = () => buildSnapPoints(vectorSource, snapPointsSource, snapOptions)
+
+        rebuild()
+
+        vectorSource.on('addfeature', rebuild)
+        vectorSource.on('changefeature', rebuild)
+        vectorSource.on('removefeature', rebuild)
+
+        return () => {
+            vectorSource.un('addfeature', rebuild)
+            vectorSource.un('changefeature', rebuild)
+            vectorSource.un('removefeature', rebuild)
+        }
+    }, [snapOptions])
+
+
     useEffect(() => {
         const map = mapInstanceRef.current
-        const midpointSource = midpointSourceRef.current
-        if (!map || !midpointSource || !snapToCenter) return
+        const snapPointsSource = snapPointsSourceRef.current
+        const anySnapEnabled = snapOptions.midpoints || snapOptions.vertices || snapOptions.lines
+        if (!map || !snapPointsSource || !anySnapEnabled) return
 
-        const snap = new Snap({ source: midpointSource })
+        const snap = new Snap({ source: snapPointsSource })
         map.addInteraction(snap)
 
         return () => {
             map.removeInteraction(snap)
         }
-    }, [snapToCenter, activeTool])
+    }, [snapOptions, activeTool])
 
 
 
@@ -296,7 +295,7 @@ export function MapContainer({ activeTool, selectedFeatureId, onSelectFeature, s
 
     useImperativeHandle(mapFunctions, () => ({
         setSegmentLength(newLength) {
-            
+
             const source = vectorSourceRef.current
             if (!source || !selectedSegment || !Number.isFinite(newLength) || newLength <= 0) return
 

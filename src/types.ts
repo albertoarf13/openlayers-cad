@@ -17,3 +17,10 @@ export type SelectedSegment = {
     length: number,
 }
 
+
+export type SnapOptions = {
+    midpoints: boolean,
+    vertices: boolean,
+    lines: boolean,
+}
+

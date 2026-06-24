@@ -7,11 +7,11 @@ type Props = {
     onShowSegmentLength: () => void
     hasSelectedFeature: boolean
     onShowBuffer: () => void
-    snapToCenter: boolean
-    onToggleSnapToCenter: () => void
+    snapEnabled: boolean
+    onShowSnapOptions: () => void
 }
 
-export function CadToolbar({ activeTool, onSelectTool, hasSelectedSegment, onShowSegmentLength, hasSelectedFeature, onShowBuffer, snapToCenter, onToggleSnapToCenter }: Props) {
+export function CadToolbar({ activeTool, onSelectTool, hasSelectedSegment, onShowSegmentLength, hasSelectedFeature, onShowBuffer, snapEnabled, onShowSnapOptions }: Props) {
 
     const toggle = (tool: Tool) => onSelectTool(activeTool === tool ? null : tool)
 
@@ -38,10 +38,10 @@ export function CadToolbar({ activeTool, onSelectTool, hasSelectedSegment, onSho
             </button>
 
             <button
-                className={`px-3 py-2 text-sm rounded ${snapToCenter ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}
-                onClick={onToggleSnapToCenter}
+                className={`px-3 py-2 text-sm rounded ${snapEnabled ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}
+                onClick={onShowSnapOptions}
             >
-                Snap Center
+                Snap
             </button>
 
             {hasSelectedSegment && (

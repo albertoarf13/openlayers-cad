@@ -4,9 +4,10 @@ import type { MapFunctions } from './components/MapContainer'
 import { CadToolbar } from './components/CadToolbar'
 import { SegmentLengthModal } from './components/SegmentLengthModal'
 import { BufferModal } from './components/BufferModal'
+import { SnapOptionsModal } from './components/SnapOptionsModal'
 import { useRef, useState } from 'react'
 import { Tool } from './types'
-import type { FeatureId, SelectedSegment } from './types'
+import type { FeatureId, SelectedSegment, SnapOptions } from './types'
 
 function App() {
 
@@ -15,8 +16,13 @@ function App() {
 	const [selectedSegment, setSelectedSegment] = useState<SelectedSegment | null>(null);
 	const [isLengthModalOpen, setIsLengthModalOpen] = useState(false)
 	const [isBufferModalOpen, setIsBufferModalOpen] = useState(false)
-	const [snapToCenter, setSnapToCenter] = useState(false)
+	
+	const [isSnapModalOpen, setIsSnapModalOpen] = useState(false)
+	const [snapOptions, setSnapOptions] = useState<SnapOptions>({ midpoints: false, vertices: false, lines: false })
+	
 	const mapFunctionsRef = useRef<MapFunctions>(null)
+
+	const snapEnabled = snapOptions.midpoints || snapOptions.vertices || snapOptions.lines
 
 
 	return (
@@ -28,14 +34,14 @@ function App() {
 				onShowSegmentLength={() => setIsLengthModalOpen(true)}
 				hasSelectedFeature={selectedFeatureId !== null}
 				onShowBuffer={() => setIsBufferModalOpen(true)}
-				snapToCenter={snapToCenter}
-				onToggleSnapToCenter={() => setSnapToCenter((v) => !v)}
+				snapEnabled={snapEnabled}
+				onShowSnapOptions={() => setIsSnapModalOpen(true)}
 			/>
 
 			<MapContainer
 				mapFunctions={mapFunctionsRef}
 				activeTool={activeTool}
-				snapToCenter={snapToCenter}
+				snapOptions={snapOptions}
 				selectedFeatureId={selectedFeatureId}
 				onSelectFeature={setSelectedFeatureId}
 				selectedSegment={selectedSegment}
@@ -54,6 +60,14 @@ function App() {
 				<BufferModal
 					onClose={() => setIsBufferModalOpen(false)}
 					onSubmit={(distance) => mapFunctionsRef.current?.createBuffer(distance)}
+				/>
+			)}
+
+			{isSnapModalOpen && (
+				<SnapOptionsModal
+					snapOptions={snapOptions}
+					onChange={setSnapOptions}
+					onClose={() => setIsSnapModalOpen(false)}
 				/>
 			)}
 		</div>
